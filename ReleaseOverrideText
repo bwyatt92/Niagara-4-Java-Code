@@ -1,0 +1,51 @@
+@Override
+  public void onStart() throws Exception {
+    System.out.println("OverrideReleaseProgram started on thread: " + Thread.currentThread().getName());
+  }
+  
+  @Override
+  public void onExecute() throws Exception {
+    System.out.println("OverrideReleaseProgram executing on thread: " + Thread.currentThread().getName());
+    
+    // BQL query filtering by active override and matching display names.
+    String query = "station:|slot:/|bql:select * from control:ControlPoint "
+                 + "where status.overridden = true "
+                 + "and (displayName like '*Damper Command*' or displayName like '*Light*')";
+    BOrd ord = BOrd.make(query);
+    
+    // Resolve the query into a table.
+    BITable result = (BITable) ord.resolve().get();
+    TableCursor cur = result.cursor();
+    int count = 0;
+    
+    while (cur.next()) {
+      BControlPoint ctrlPoint = (BControlPoint) cur.get();
+      String name = ctrlPoint.getName();
+      System.out.println(ctrlPoint.getName());
+      
+      try {
+        // For each writable point type, call the auto() method to clear the override.
+        if (ctrlPoint instanceof BBooleanWritable) {
+          ((BBooleanWritable) ctrlPoint).auto();
+        }
+        else if (ctrlPoint instanceof BEnumWritable) {
+          ((BEnumWritable) ctrlPoint).auto();
+        }
+        else if (ctrlPoint instanceof BNumericWritable) {
+          ((BNumericWritable) ctrlPoint).auto();
+        }
+        
+        System.out.println("Released override for: " + name);
+        count++;
+      }
+      catch(Exception e) {
+        System.out.println("Failed to release override for " + name + ": " + e.getMessage());
+      }
+    }
+    System.out.println("Total overrides released: " + count);
+  }
+  
+  @Override
+  public void onStop() throws Exception {
+    System.out.println("OverrideReleaseProgram stopping.");
+  }
